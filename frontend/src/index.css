@@ -1,0 +1,15 @@
+:root {
+  color-scheme: light;
+  font: 14px/1.4 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}

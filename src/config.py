@@ -1,9 +1,28 @@
-BASE_URL = "https://public.highwaystrafficcameras.co.uk/cctvpublicaccess"
+import json
+from pathlib import Path
 
-OUTPUT_FILE = "national_highways_cameras.json"
+_SRC_DIR = Path(__file__).parent
 
-START_ID = 0
-END_ID = 1000 #99999
-WORKERS = 50
+with open(
+    _SRC_DIR / "config.json",
+    "r",
+    encoding="utf-8"
+) as _file:
 
-USER_AGENT = "openhighways /1.0"
+    _SETTINGS = json.load(_file)
+
+_GLOBAL = _SETTINGS["global"]
+
+# Anchored to src/ rather than the process cwd, so scripts behave the same
+# no matter which directory they're launched from.
+CONFIG_DIR = _SRC_DIR / _GLOBAL["config_dir"]
+
+DATABASE_FILE = CONFIG_DIR / _GLOBAL["database_file"]
+
+USER_AGENT = _GLOBAL["user_agent"]
+
+
+def section(name):
+    """Settings for one script/step of config.json, e.g. section("sources")["tfl"]."""
+    return _SETTINGS[name]
+

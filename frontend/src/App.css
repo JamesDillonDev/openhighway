@@ -1,0 +1,131 @@
+.app {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+}
+
+.map {
+  height: 100%;
+  width: 100%;
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 320px;
+  max-width: 90vw;
+  background: #fff;
+  border-left: 1px solid #ddd;
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.panel-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.panel-close:hover {
+  color: #111;
+}
+
+.panel-image {
+  width: 100%;
+  border: 1px solid #ddd;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.panel h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-right: 24px;
+  color: #111;
+}
+
+.panel dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.panel dt {
+  color: #777;
+}
+
+.panel dd {
+  margin: 0;
+  color: #111;
+}
+
+.panel h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  margin: 20px 0 8px;
+}
+
+.history-graph {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+.history-graph polyline {
+  fill: none;
+  stroke: #2b6cb0;
+  stroke-width: 1.5;
+}
+
+.history-caption {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.history-empty {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}
+
+.refresh-button {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #111;
+  cursor: pointer;
+}
+
+.refresh-button:hover {
+  background: #f5f5f5;
+}
+
+.refresh-button:disabled {
+  color: #999;
+  cursor: default;
+}

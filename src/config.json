@@ -1,0 +1,30 @@
+{
+  "global": {
+    "config_dir": "config",
+    "database_file": "openhighway.sqlite3",
+    "user_agent": "openhighways /1.0"
+  },
+  "master": {
+    "default_steps": ["sync_sources"]
+  },
+  "api": {
+    "host": "127.0.0.1",
+    "port": 5000,
+    "cors_origin": "http://localhost:5173"
+  },
+  "sources": {
+    "national_highways": {
+      "base_url": "https://public.highwaystrafficcameras.co.uk/cctvpublicaccess",
+      "start_id": 0,
+      "end_id": 99999,
+      "workers": 40,
+      "feature_server": "https://services-eu1.arcgis.com/mZXeBXkkZpekxjXT/arcgis/rest/services/Network_Model_Public_view2/FeatureServer/1/query",
+      "request_timeout": 30,
+      "request_delay": 0.1
+    },
+    "tfl": {
+      "base_url": "https://api.tfl.gov.uk",
+      "request_timeout": 15
+    }
+  }
+}
