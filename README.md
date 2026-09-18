@@ -15,6 +15,7 @@ images - the rest of the system never has provider-specific logic in it.
 | `national_highways`  | England strategic road network (M/A roads) | Active - public, unauthenticated                                  |
 | `tfl`                | Greater London (JamCams)                   | Active - public, unauthenticated (optional `TFL_APP_KEY` for a higher rate limit) |
 | `traffic_wales`      | Wales trunk road network                   | Active - public, unauthenticated (coordinates approximated via OpenStreetMap geocoding) |
+| `northern_ireland`   | Northern Ireland trunk road network        | Active - public, unauthenticated (TrafficWatchNI; coordinates approximated via OpenStreetMap geocoding) |
 | `traffic_scotland`   | Scotland trunk road network                | Not yet active - Traffic Scotland's camera feed requires approved-subscriber FTP access (see `src/sources/traffic_scotland.py`) |
 
 ## Project structure
@@ -34,6 +35,7 @@ src/
     national_highways.py         # National Highways
     tfl.py                        # Transport for London
     traffic_wales.py               # Traffic Wales
+    northern_ireland.py             # TrafficWatchNI (Northern Ireland)
     traffic_scotland.py             # Traffic Scotland (stub pending subscriber access)
 backend/
   app.py                 # Flask API serving camera data (from the database) to the frontend

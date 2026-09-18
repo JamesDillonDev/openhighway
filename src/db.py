@@ -196,6 +196,16 @@ def get_camera(conn: sqlite3.Connection, source: str, internal_id: str) -> Optio
     return _row_to_record(row) if row else None
 
 
+def get_camera_by_master_id(conn: sqlite3.Connection, master_id: int) -> Optional[CameraRecord]:
+
+    row = conn.execute(
+        "SELECT * FROM cameras WHERE master_id = ?",
+        (master_id,),
+    ).fetchone()
+
+    return _row_to_record(row) if row else None
+
+
 def list_cameras(
     conn: sqlite3.Connection,
     source: Optional[str] = None,

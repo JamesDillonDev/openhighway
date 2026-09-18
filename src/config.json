@@ -38,6 +38,13 @@
       "request_timeout": 20,
       "geocode_base_url": "https://nominatim.openstreetmap.org/search",
       "geocode_delay_seconds": 1.0
+    },
+    "northern_ireland": {
+      "base_url": "https://www.trafficwatchni.com",
+      "index_path": "/twni/cameras",
+      "request_timeout": 20,
+      "geocode_base_url": "https://nominatim.openstreetmap.org/search",
+      "geocode_delay_seconds": 1.0
     }
   },
   "vehicle_watcher": {

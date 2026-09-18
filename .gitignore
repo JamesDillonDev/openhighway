@@ -4,5 +4,6 @@ src/config/*.sqlite3
 src/config/*.sqlite3-shm
 src/config/*.sqlite3-wal
 src/config/traffic_wales_geocode_cache.json
+src/config/northern_ireland_geocode_cache.json
 __pycache__/
 *.pyc

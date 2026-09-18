@@ -1,4 +1,5 @@
 from .national_highways import NationalHighwaysSource
+from .northern_ireland import NorthernIrelandSource
 from .source import Source
 from .tfl import TfLSource
 from .traffic_scotland import TrafficScotlandSource
@@ -7,6 +8,7 @@ from .traffic_wales import TrafficWalesSource
 #: every source OpenHighways knows how to build, keyed by its `name`
 AVAILABLE_SOURCES: dict[str, type[Source]] = {
     NationalHighwaysSource.name: NationalHighwaysSource,
+    NorthernIrelandSource.name: NorthernIrelandSource,
     TfLSource.name: TfLSource,
     TrafficScotlandSource.name: TrafficScotlandSource,
     TrafficWalesSource.name: TrafficWalesSource,
@@ -30,6 +32,7 @@ def load_sources(names: list[str] | None = None) -> list[Source]:
 
 
 __all__ = [
-    "Source", "NationalHighwaysSource", "TfLSource", "TrafficScotlandSource", "TrafficWalesSource",
+    "Source", "NationalHighwaysSource", "NorthernIrelandSource", "TfLSource",
+    "TrafficScotlandSource", "TrafficWalesSource",
     "AVAILABLE_SOURCES", "load_sources",
 ]

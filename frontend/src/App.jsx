@@ -12,29 +12,45 @@ const IMAGE_REFRESH_MS = 1000
 // source the frontend doesn't recognise yet.
 const SOURCE_LABELS = {
   national_highways: 'National Highways',
-  tfl: 'TfL',
+  tfl: 'Transport for London',
   traffic_scotland: 'Traffic Scotland',
   traffic_wales: 'Traffic Wales',
+  northern_ireland: 'Traffic Watch NI',
 }
 
-// Small colour-coded badge shown next to a camera's name so its source is
-// identifiable at a glance - initials rather than each organisation's
-// actual (trademarked) logo artwork.
-const SOURCE_BADGES = {
-  national_highways: { label: 'NH', color: '#00549f' },
-  tfl: { label: 'TfL', color: '#dc241f' },
-  traffic_scotland: { label: 'TS', color: '#0f7b43' },
-  traffic_wales: { label: 'TW', color: '#a3122a' },
+// Colour-coded badge shown next to a camera's name so its source is
+// identifiable at a glance - used as a fallback for any source without a
+// logo below.
+const SOURCE_COLORS = {
+  national_highways: '#00549f',
+  tfl: '#dc241f',
+  traffic_scotland: '#0f7b43',
+  traffic_wales: '#a3122a',
+  northern_ireland: '#1d7a4c',
+}
+
+// Each provider's own logo, downloaded from their official site
+// (frontend/public/logos) - shown in the camera preview panel only, not
+// the source filter list (plain text reads better at that small size).
+const SOURCE_LOGOS = {
+  national_highways: '/logos/national_highways_full.png',
+  tfl: '/logos/tfl_full.png',
+  traffic_scotland: '/logos/traffic_scotland_full.png',
+  traffic_wales: '/logos/traffic_wales_full.png',
+  northern_ireland: '/logos/northern_ireland_full.png',
 }
 
 function SourceBadge({ source }) {
-  const badge = SOURCE_BADGES[source]
+  const logo = SOURCE_LOGOS[source]
+  const label = SOURCE_LABELS[source] || source
+  const color = SOURCE_COLORS[source] || '#666'
 
-  const label = badge?.label || source?.slice(0, 2).toUpperCase()
-  const color = badge?.color || '#666'
+  if (logo) {
+    return <img className="source-badge source-badge-logo" src={logo} alt={label} title={label} />
+  }
 
   return (
-    <span className="source-badge" style={{ backgroundColor: color }} title={SOURCE_LABELS[source] || source}>
+    <span className="source-badge" style={{ backgroundColor: color }}>
       {label}
     </span>
   )
@@ -188,6 +204,14 @@ function CameraPanel({ camera, onClose }) {
     setImageExpanded(false)
   }, [displayCamera?.id])
 
+  // Only the initial load per camera should show the placeholder - not
+  // every periodic cache-busted refresh of the same feed.
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  useEffect(() => {
+    setImageLoaded(false)
+  }, [displayCamera?.id])
+
   // Camera feeds are single static images at a fixed URL - re-fetch on a
   // timer via a cache-busting query param rather than relying on the
   // browser to notice the source has changed.
@@ -213,12 +237,22 @@ function CameraPanel({ camera, onClose }) {
         &times;
       </button>
 
-      <img
-        className="panel-image"
-        src={imageSrc}
-        alt={displayCamera.name || `Camera ${displayCamera.id}`}
-        onClick={() => setImageExpanded(true)}
-      />
+      <div className="panel-image-frame">
+        {!imageLoaded && (
+          <div className="panel-image-loading">Loading…</div>
+        )}
+
+        <img
+          className="panel-image"
+          key={displayCamera.id}
+          src={imageSrc}
+          alt={displayCamera.name || `Camera ${displayCamera.id}`}
+          onClick={() => setImageExpanded(true)}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageLoaded(true)}
+          style={{ visibility: imageLoaded ? 'visible' : 'hidden' }}
+        />
+      </div>
 
       <h2 className="panel-title">
         {displayCamera.name || `Camera ${displayCamera.id}`}
@@ -254,7 +288,7 @@ function CameraPanel({ camera, onClose }) {
           >
             &times;
           </button>
-          <img src={imageSrc} alt={displayCamera.name || `Camera ${displayCamera.id}`} />
+          <img key={displayCamera.id} src={imageSrc} alt={displayCamera.name || `Camera ${displayCamera.id}`} />
         </div>,
         document.body
       )}
@@ -272,6 +306,16 @@ function App() {
     () => [...new Set(cameras.map((camera) => camera.source))].sort(),
     [cameras]
   )
+
+  const sourceCounts = useMemo(() => {
+    const counts = {}
+
+    for (const camera of cameras) {
+      counts[camera.source] = (counts[camera.source] || 0) + 1
+    }
+
+    return counts
+  }, [cameras])
 
   const visibleCameras = useMemo(
     () => cameras.filter((camera) => !hiddenSources.has(camera.source)),
@@ -334,16 +378,21 @@ function App() {
 
         {sources.length > 0 && (
           <div className="source-filter">
-            {sources.map((source) => (
-              <label key={source} className="source-filter-item">
-                <input
-                  type="checkbox"
-                  checked={!hiddenSources.has(source)}
-                  onChange={() => toggleSource(source)}
-                />
-                {SOURCE_LABELS[source] || source}
-              </label>
-            ))}
+            {sources.map((source) => {
+              const label = SOURCE_LABELS[source] || source
+
+              return (
+                <label key={source} className="source-filter-item">
+                  <input
+                    type="checkbox"
+                    checked={!hiddenSources.has(source)}
+                    onChange={() => toggleSource(source)}
+                  />
+                  <span>{label}</span>
+                  <span className="source-filter-count">{sourceCounts[source] ?? 0}</span>
+                </label>
+              )
+            })}
           </div>
         )}
       </div>
