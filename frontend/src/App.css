@@ -47,6 +47,42 @@
   margin-top: 24px;
   margin-bottom: 12px;
   display: block;
+  cursor: zoom-in;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+
+.image-lightbox img {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  background: none;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.lightbox-close:hover {
+  color: #ccc;
 }
 
 .panel h2 {
@@ -55,6 +91,28 @@
   margin: 0 0 12px;
   padding-right: 24px;
   color: #111;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.source-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #fff;
 }
 
 .panel dl {
@@ -128,4 +186,28 @@
 .refresh-button:disabled {
   color: #999;
   cursor: default;
+}
+
+.source-filter {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #111;
+}
+
+.source-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
 }

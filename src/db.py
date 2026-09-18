@@ -45,6 +45,12 @@ CREATE TABLE IF NOT EXISTS camera_images (
     local_path TEXT,
     vehicle_count INTEGER
 );
+
+-- Every history read/write filters by camera and orders by time - without
+-- this, both scale linearly with the whole table's size, not just one
+-- camera's history, once there are thousands of cameras.
+CREATE INDEX IF NOT EXISTS idx_camera_images_camera_ts
+    ON camera_images (master_camera_id, timestamp);
 """
 
 
@@ -67,6 +73,13 @@ def get_connection(db_path: Optional[Union[str, Path]] = None) -> sqlite3.Connec
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+
+    if db_path != ":memory:":
+        # WAL lets the API read while the pipeline/watcher writes without
+        # either side blocking; busy_timeout retries instead of raising
+        # immediately if a write does briefly collide with another connection.
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
 
     return conn
 
@@ -268,6 +281,72 @@ def list_camera_images(
         {"t": row["timestamp"], "v": row["vehicle_count"]}
         for row in reversed(rows)
     ]
+
+
+def prune_camera_images(conn: sqlite3.Connection, master_id: int, keep: int) -> int:
+    """Delete all but the most recent `keep` history rows for a camera, so
+    the table doesn't grow forever."""
+
+    cursor = conn.execute(
+        """
+        DELETE FROM camera_images
+        WHERE master_camera_id = ? AND id NOT IN (
+            SELECT id FROM camera_images
+            WHERE master_camera_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        )
+        """,
+        (master_id, master_id, keep),
+    )
+    conn.commit()
+
+    return cursor.rowcount
+
+
+def record_vehicle_observation(
+    conn: sqlite3.Connection,
+    master_id: int,
+    image_url: Optional[str],
+    local_path: Optional[str],
+    vehicle_count: Optional[int],
+    keep_history: int,
+    timestamp: Optional[str] = None,
+) -> None:
+    """Insert a history row, prune old ones, and cache the latest count on
+    the camera - one commit instead of three, since the watcher does this
+    for every camera on every cycle."""
+
+    timestamp = timestamp or _now()
+
+    conn.execute(
+        """
+        INSERT INTO camera_images (master_camera_id, timestamp, image_url, local_path, vehicle_count)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (master_id, timestamp, image_url, local_path, vehicle_count),
+    )
+
+    conn.execute(
+        """
+        DELETE FROM camera_images
+        WHERE master_camera_id = ? AND id NOT IN (
+            SELECT id FROM camera_images
+            WHERE master_camera_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        )
+        """,
+        (master_id, master_id, keep_history),
+    )
+
+    if vehicle_count is not None:
+        conn.execute(
+            "UPDATE cameras SET vehicles = ?, updated_at = ? WHERE master_id = ?",
+            (vehicle_count, timestamp, master_id),
+        )
+
+    conn.commit()
 
 
 def export_to_json(conn: sqlite3.Connection, path: Union[str, Path], source: Optional[str] = None) -> int:

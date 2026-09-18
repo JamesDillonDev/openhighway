@@ -32,6 +32,7 @@ class NationalHighwaysSource(Source):
 
     DESCRIPTION_RE = re.compile(r"Camera:\s*(\d+)\s*-\s*(.*?)(?:Refresh|$)", re.IGNORECASE)
     CARRIAGEWAY_RE = re.compile(r"carriageway closest to the camera is\s+(.*?)(?:\.|$)", re.IGNORECASE)
+    UNAVAILABLE_RE = re.compile(r"\b(not\s+available|unavailable)\b", re.IGNORECASE)
     ROAD_RE = re.compile(r"\b((?:M|A)\d+(?:\(M\))?[A-Z]?)\b")
     CHAINAGE_RE = re.compile(r"\b(\d+/\d+[A-Z]?)\b")
     JUNCTION_RE = re.compile(r"\bJ(\d+[A-Z]?(?:-\d+[A-Z]?)?)\b")
@@ -88,9 +89,10 @@ class NationalHighwaysSource(Source):
 
         return self._normalise(raw_camera, road_cache={})
 
-    def get_latest_image(self, internal_id: str) -> Optional[bytes]:
+    def get_latest_image(self, internal_id: str, image_url: Optional[str] = None) -> Optional[bytes]:
 
-        image_url = self._image_url(int(internal_id))
+        # Always cheaply derivable from the ID alone - no lookup to skip.
+        image_url = image_url or self._image_url(int(internal_id))
 
         try:
             response = self.session.get(image_url, timeout=self.request_timeout)
@@ -128,6 +130,7 @@ class NationalHighwaysSource(Source):
 
                 if result:
                     raw_cameras.append(result)
+                    print(f"[FOUND] {result['id']} | {result['description']}")
 
         return raw_cameras
 
@@ -171,6 +174,11 @@ class NationalHighwaysSource(Source):
             match = self.DESCRIPTION_RE.search(text)
             if match:
                 description = match.group(2).strip()
+
+            # Cameras marked "not available"/"unavailable" have no useful
+            # feed - drop them rather than keeping a dead entry.
+            if self.UNAVAILABLE_RE.search(description or text):
+                return None
 
             carriageway = None
             match = self.CARRIAGEWAY_RE.search(text)

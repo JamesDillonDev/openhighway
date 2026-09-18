@@ -58,8 +58,12 @@ class TfLSource(Source):
     def discover_cameras(self) -> list[SourceCamera]:
 
         places = self._request(self.PLACES_ENDPOINT)
+        cameras = [self._normalise(place) for place in places]
 
-        return [self._normalise(place) for place in places]
+        for camera in cameras:
+            print(f"[FOUND] {camera.internal_id} | {camera.name}")
+
+        return cameras
 
     def get_camera(self, internal_id: str) -> Optional[SourceCamera]:
 
@@ -74,15 +78,20 @@ class TfLSource(Source):
 
         return self._normalise(place) if place else None
 
-    def get_latest_image(self, internal_id: str) -> Optional[bytes]:
+    def get_latest_image(self, internal_id: str, image_url: Optional[str] = None) -> Optional[bytes]:
 
-        camera = self.get_camera(internal_id)
+        # Skip the metadata lookup entirely if the caller already has a
+        # cached URL - JamCam image URLs are stable, so there's no need to
+        # re-fetch camera metadata on every single image poll.
+        if not image_url:
+            camera = self.get_camera(internal_id)
+            image_url = camera.image_url if camera else None
 
-        if camera is None or not camera.image_url:
+        if not image_url:
             return None
 
         try:
-            response = self.session.get(camera.image_url, timeout=self.request_timeout)
+            response = self.session.get(image_url, timeout=self.request_timeout)
             response.raise_for_status()
             return response.content
 

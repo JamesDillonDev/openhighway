@@ -25,6 +25,29 @@
     "tfl": {
       "base_url": "https://api.tfl.gov.uk",
       "request_timeout": 15
+    },
+    "traffic_scotland": {
+      "ftp_host": "",
+      "ftp_directory": "/",
+      "request_timeout": 30
+    },
+    "traffic_wales": {
+      "base_url": "https://traffic.wales",
+      "index_path": "/road-cameras",
+      "workers": 8,
+      "request_timeout": 20,
+      "geocode_base_url": "https://nominatim.openstreetmap.org/search",
+      "geocode_delay_seconds": 1.0
     }
+  },
+  "vehicle_watcher": {
+    "interval_seconds": 60,
+    "workers": 40,
+    "max_history_points": 240,
+    "image_dir": "camera_images",
+    "model_dir": "models",
+    "input_size": 320,
+    "confidence_threshold": 0.5,
+    "nms_threshold": 0.5
   }
 }

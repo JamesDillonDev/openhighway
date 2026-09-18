@@ -39,8 +39,13 @@ class Source(ABC):
         """Return a single camera by its provider-specific ID, or None."""
 
     @abstractmethod
-    def get_latest_image(self, internal_id: str) -> Optional[bytes]:
-        """Return the latest raw image bytes for a camera, or None."""
+    def get_latest_image(self, internal_id: str, image_url: Optional[str] = None) -> Optional[bytes]:
+        """Return the latest raw image bytes for a camera, or None.
+
+        `image_url` is an optional already-known URL (e.g. cached from a
+        previous sync) - sources whose image URL is otherwise only
+        discoverable via an extra lookup should use it to skip that lookup.
+        """
 
     def metadata(self) -> dict:
         """Static info about this source - override to add more detail."""

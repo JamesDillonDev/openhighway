@@ -1,10 +1,43 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 
 const UK_CENTER = [54.5, -3]
 const POLL_INTERVAL_MS = 30000
+const IMAGE_REFRESH_MS = 5000
+
+// Friendlier labels for known sources - falls back to the raw name for any
+// source the frontend doesn't recognise yet.
+const SOURCE_LABELS = {
+  national_highways: 'National Highways',
+  tfl: 'TfL',
+  traffic_scotland: 'Traffic Scotland',
+  traffic_wales: 'Traffic Wales',
+}
+
+// Small colour-coded badge shown next to a camera's name so its source is
+// identifiable at a glance - initials rather than each organisation's
+// actual (trademarked) logo artwork.
+const SOURCE_BADGES = {
+  national_highways: { label: 'NH', color: '#00549f' },
+  tfl: { label: 'TfL', color: '#dc241f' },
+  traffic_scotland: { label: 'TS', color: '#0f7b43' },
+  traffic_wales: { label: 'TW', color: '#a3122a' },
+}
+
+function SourceBadge({ source }) {
+  const badge = SOURCE_BADGES[source]
+
+  const label = badge?.label || source?.slice(0, 2).toUpperCase()
+  const color = badge?.color || '#666'
+
+  return (
+    <span className="source-badge" style={{ backgroundColor: color }} title={SOURCE_LABELS[source] || source}>
+      {label}
+    </span>
+  )
+}
 
 // Traffic-level colour scale: few/no vehicles reads as blue, heavy traffic
 // as red. Anything at or above this count is treated as "full red".
@@ -80,7 +113,30 @@ function TrafficHistory({ cameraId }) {
 }
 
 function CameraPanel({ camera, onClose }) {
+  const [imageExpanded, setImageExpanded] = useState(false)
+
+  useEffect(() => {
+    setImageExpanded(false)
+  }, [camera?.id])
+
+  // Camera feeds are single static images at a fixed URL - re-fetch on a
+  // timer via a cache-busting query param rather than relying on the
+  // browser to notice the source has changed.
+  const [refreshedAt, setRefreshedAt] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!camera) return
+
+    const timer = setInterval(() => setRefreshedAt(Date.now()), IMAGE_REFRESH_MS)
+
+    return () => clearInterval(timer)
+  }, [camera?.id])
+
   if (!camera) return null
+
+  const imageSrc = camera.image_url
+    ? `${camera.image_url}${camera.image_url.includes('?') ? '&' : '?'}t=${refreshedAt}`
+    : camera.image_url
 
   return (
     <aside className="panel">
@@ -90,21 +146,25 @@ function CameraPanel({ camera, onClose }) {
 
       <img
         className="panel-image"
-        src={camera.image_url}
-        alt={camera.description || `Camera ${camera.id}`}
+        src={imageSrc}
+        alt={camera.name || `Camera ${camera.id}`}
+        onClick={() => setImageExpanded(true)}
       />
 
-      <h2>{camera.description || `Camera ${camera.id}`}</h2>
+      <h2 className="panel-title">
+        {camera.name || `Camera ${camera.id}`}
+        <SourceBadge source={camera.source} />
+      </h2>
 
       <dl>
         <dt>Road</dt>
-        <dd>{camera.national_highways_link?.roadname || '—'}</dd>
+        <dd>{camera.road || '—'}</dd>
 
-        <dt>Carriageway</dt>
-        <dd>{camera.carriageway || camera.national_highways_link?.carriageway || '—'}</dd>
+        <dt>Direction</dt>
+        <dd>{camera.direction || '—'}</dd>
 
-        <dt>Status</dt>
-        <dd>{camera.available ? 'Available' : 'Unavailable'}</dd>
+        <dt>Source</dt>
+        <dd>{camera.source}</dd>
 
         <dt>Vehicles</dt>
         <dd>{camera.vehicles ?? '—'}</dd>
@@ -112,6 +172,19 @@ function CameraPanel({ camera, onClose }) {
 
       <h3>Traffic history</h3>
       <TrafficHistory cameraId={camera.id} />
+
+      {imageExpanded && (
+        <div className="image-lightbox" onClick={() => setImageExpanded(false)}>
+          <button
+            className="lightbox-close"
+            onClick={() => setImageExpanded(false)}
+            aria-label="Close"
+          >
+            &times;
+          </button>
+          <img src={imageSrc} alt={camera.name || `Camera ${camera.id}`} />
+        </div>
+      )}
     </aside>
   )
 }
@@ -120,6 +193,31 @@ function App() {
   const [cameras, setCameras] = useState([])
   const [selected, setSelected] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [hiddenSources, setHiddenSources] = useState(() => new Set())
+
+  const sources = useMemo(
+    () => [...new Set(cameras.map((camera) => camera.source))].sort(),
+    [cameras]
+  )
+
+  const visibleCameras = useMemo(
+    () => cameras.filter((camera) => !hiddenSources.has(camera.source)),
+    [cameras, hiddenSources]
+  )
+
+  const toggleSource = (source) => {
+    setHiddenSources((prev) => {
+      const next = new Set(prev)
+
+      if (next.has(source)) {
+        next.delete(source)
+      } else {
+        next.add(source)
+      }
+
+      return next
+    })
+  }
 
   const loadCameras = () => {
     setRefreshing(true)
@@ -158,30 +256,47 @@ function App() {
         {refreshing ? 'Refreshing…' : 'Refresh'}
       </button>
 
+      {sources.length > 0 && (
+        <div className="source-filter">
+          {sources.map((source) => (
+            <label key={source} className="source-filter-item">
+              <input
+                type="checkbox"
+                checked={!hiddenSources.has(source)}
+                onChange={() => toggleSource(source)}
+              />
+              {SOURCE_LABELS[source] || source}
+            </label>
+          ))}
+        </div>
+      )}
+
       <MapContainer
         center={UK_CENTER}
         zoom={6}
+        zoomControl={false}
         className="map"
       >
+        <ZoomControl position="topright" />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {cameras.map((camera) => (
+        {visibleCameras.map((camera) => (
           <CircleMarker
             key={camera.id}
             center={[camera.latitude, camera.longitude]}
             radius={9}
             weight={2}
             color="#2b2b2b"
-            fillColor={camera.available ? trafficColor(camera.vehicles) : UNAVAILABLE_COLOR}
+            fillColor={trafficColor(camera.vehicles)}
             fillOpacity={0.9}
             eventHandlers={{
               click: () => setSelected(camera),
             }}
           >
-            <Popup>{camera.description || camera.id}</Popup>
+            <Popup>{camera.name || camera.id}</Popup>
           </CircleMarker>
         ))}
       </MapContainer>

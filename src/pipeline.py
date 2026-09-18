@@ -45,6 +45,8 @@ class MasterPipeline:
 
     def _run_source(self, conn, source: Source) -> SourceRunResult:
 
+        print(f"[SOURCE] Starting {source.name}...")
+
         try:
             cameras = source.discover_cameras()
 
