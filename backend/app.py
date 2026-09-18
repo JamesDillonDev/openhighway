@@ -1,3 +1,4 @@
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -15,6 +16,11 @@ from config import USER_AGENT, section  # noqa: E402
 
 API_SETTINGS = section("api")
 
+# Hosts like Render assign the port/public URL at deploy time rather than
+# letting config.json hardcode them - env vars take priority when set.
+PORT = int(os.environ.get("PORT", API_SETTINGS["port"]))
+CORS_ORIGIN = os.environ.get("CORS_ORIGIN", API_SETTINGS["cors_origin"])
+
 # Most sources' image URLs can be hotlinked directly by the browser (the
 # default, bandwidth-cheap path - see get_cameras below). TrafficWatchNI's
 # CCTV image host instead 403s any request without its own site as the
@@ -25,7 +31,7 @@ IMAGE_PROXY_HEADERS = {
 }
 
 app = Flask(__name__)
-CORS(app, origins=[API_SETTINGS["cors_origin"]])
+CORS(app, origins=[CORS_ORIGIN])
 
 # Ensure the schema exists even if sync_sources.py hasn't been run yet.
 _startup_conn = db.get_connection()
@@ -105,6 +111,6 @@ def get_camera_image(master_id):
 if __name__ == "__main__":
     app.run(
         host=API_SETTINGS["host"],
-        port=API_SETTINGS["port"],
+        port=PORT,
         debug=True
     )

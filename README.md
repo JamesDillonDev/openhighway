@@ -187,6 +187,55 @@ one section per source under `sources`, plus `vehicle_watcher` and `api`.
 `src/config.py` just loads `config.json` and exposes it to the modules - edit
 `config.json` to change any setting, not `config.py`.
 
+## Deployment
+
+### Docker Compose (self-hosted)
+
+`docker-compose.yml` runs four services from the same [`Dockerfile`](Dockerfile)/
+[`frontend/Dockerfile`](frontend/Dockerfile): `backend`, `watcher` and
+`frontend`, plus a one-off `sync` service (`docker compose run --rm sync`).
+`backend` and `watcher` share one Docker volume (`openhighway-data`) mounted
+at `/app/src/config`, so they both read/write the same SQLite database.
+
+```powershell
+docker compose up -d --build
+```
+
+### Render
+
+[`render.yaml`](render.yaml) defines a Render [Blueprint](https://render.com/docs/blueprint-spec)
+with two services:
+
+- **`openhighway-api`** - a Docker-based web service running
+  [`render-start.sh`](render-start.sh), which syncs sources, starts the
+  vehicle watcher in the background, then runs the Flask API under
+  gunicorn in the foreground. It has a 1 GB persistent disk mounted at
+  `/app/src/config` for the SQLite database, camera image cache and
+  geocode caches.
+
+  Render only allows a persistent disk to be attached to *one* service, and
+  the API and watcher both need to read/write the same database - that's
+  why they run together in one service here, unlike the two separate
+  `backend`/`watcher` services in docker-compose. A disk also requires a
+  paid compute plan (the `free` plan supports neither disks nor an
+  always-on process for the watcher).
+
+- **`openhighway-frontend`** - a free static site built from `frontend/`,
+  with a rewrite rule proxying `/api/*` to `openhighway-api`'s URL so the
+  browser only ever talks to one origin (no CORS needed for normal use).
+
+To deploy: push this repo to GitHub, then in the [Render Dashboard](https://dashboard.render.com)
+choose **New > Blueprint** and point it at the repo. After both services are
+created:
+
+1. Confirm `openhighway-api`'s actual `onrender.com` URL (Render may assign
+   a different subdomain if `openhighway-api`/`openhighway-frontend` are
+   already taken) and update the `CORS_ORIGIN` env var on `openhighway-api`
+   and the rewrite `destination` in `render.yaml` (then redeploy) if so.
+2. Optionally set `TFL_APP_KEY` and/or the Traffic Scotland FTP credentials
+   as env vars on `openhighway-api` - the Blueprint prompts for these
+   during setup since they're secrets (`sync: false`).
+
 ## Troubleshooting
 
 - **`NameResolutionError` / `getaddrinfo failed` on every request** — this is
