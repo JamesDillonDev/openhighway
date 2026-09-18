@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
@@ -241,7 +242,10 @@ function CameraPanel({ camera, onClose }) {
       <h3>Traffic history</h3>
       <TrafficHistory cameraId={displayCamera.id} />
 
-      {imageExpanded && (
+      {imageExpanded && createPortal(
+        // Rendered outside `.panel` via a portal - `.panel`'s slide-in
+        // `transform` would otherwise make this fixed overlay position
+        // itself relative to the panel's box instead of the viewport.
         <div className="image-lightbox" onClick={() => setImageExpanded(false)}>
           <button
             className="lightbox-close"
@@ -251,7 +255,8 @@ function CameraPanel({ camera, onClose }) {
             &times;
           </button>
           <img src={imageSrc} alt={displayCamera.name || `Camera ${displayCamera.id}`} />
-        </div>
+        </div>,
+        document.body
       )}
     </aside>
   )
