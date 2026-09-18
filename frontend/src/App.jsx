@@ -187,6 +187,10 @@ function CameraPanel({ camera, onClose }) {
   const [open, setOpen] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
 
+  // Only the initial load per camera should show the placeholder - not
+  // every periodic cache-busted refresh of the same feed.
+  const [imageLoaded, setImageLoaded] = useState(false)
+
   useEffect(() => {
     if (camera) {
       setDisplayCamera(camera)
@@ -201,14 +205,9 @@ function CameraPanel({ camera, onClose }) {
   }, [camera])
 
   useEffect(() => {
+    // Reset per-camera UI state (lightbox, loading placeholder) whenever
+    // the selected camera changes.
     setImageExpanded(false)
-  }, [displayCamera?.id])
-
-  // Only the initial load per camera should show the placeholder - not
-  // every periodic cache-busted refresh of the same feed.
-  const [imageLoaded, setImageLoaded] = useState(false)
-
-  useEffect(() => {
     setImageLoaded(false)
   }, [displayCamera?.id])
 
