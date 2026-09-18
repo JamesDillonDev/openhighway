@@ -1,0 +1,46 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python backend/app.py
+    volumes:
+      - openhighway-data:/app/src/config
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python src/vehicle_watcher.py
+    volumes:
+      - openhighway-data:/app/src/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # One-off sync, not a long-running service: `docker compose run --rm sync`
+  # (optionally `-- --sources tfl,traffic_wales`).
+  sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python src/sync_sources.py
+    volumes:
+      - openhighway-data:/app/src/config
+    profiles:
+      - tools
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  openhighway-data:

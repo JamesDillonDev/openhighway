@@ -22,6 +22,12 @@
   overflow-y: auto;
   z-index: 1000;
   box-sizing: border-box;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.panel-open {
+  transform: translateX(0);
 }
 
 .panel-close {
@@ -143,12 +149,25 @@
   width: 100%;
   height: 60px;
   display: block;
+  cursor: crosshair;
 }
 
 .history-graph polyline {
   fill: none;
   stroke: #2b6cb0;
   stroke-width: 1.5;
+}
+
+.history-hover-line {
+  stroke: #999;
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.history-hover-dot {
+  fill: #2b6cb0;
+  stroke: #fff;
+  stroke-width: 1;
 }
 
 .history-caption {
@@ -159,17 +178,53 @@
   margin-top: 4px;
 }
 
+.history {
+  position: relative;
+}
+
+.history-tooltip {
+  position: absolute;
+  top: -6px;
+  transform: translate(-50%, -100%);
+  background: #222;
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .history-empty {
   font-size: 12px;
   color: #888;
   margin: 0;
 }
 
-.refresh-button {
+.top-left-panel {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.app-logo {
+  display: block;
+  height: 100px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.refresh-button {
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -189,14 +244,6 @@
 }
 
 .source-filter {
-  position: absolute;
-  top: 48px;
-  left: 12px;
-  z-index: 1000;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -5,7 +5,7 @@ import './App.css'
 
 const UK_CENTER = [54.5, -3]
 const POLL_INTERVAL_MS = 30000
-const IMAGE_REFRESH_MS = 5000
+const IMAGE_REFRESH_MS = 1000
 
 // Friendlier labels for known sources - falls back to the raw name for any
 // source the frontend doesn't recognise yet.
@@ -60,6 +60,7 @@ function trafficColor(vehicles) {
 
 function TrafficHistory({ cameraId }) {
   const [points, setPoints] = useState([])
+  const [hoverIndex, setHoverIndex] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -92,17 +93,67 @@ function TrafficHistory({ cameraId }) {
   const values = points.map((point) => point.v)
   const max = Math.max(...values, 1)
 
-  const coords = points.map((point, i) => {
-    const x = (i / (points.length - 1)) * width
-    const y = height - (point.v / max) * height
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  })
+  const xForIndex = (i) => (i / (points.length - 1)) * width
+  const yForValue = (v) => height - (v / max) * height
+
+  const coords = points.map((point, i) => `${xForIndex(i).toFixed(1)},${yForValue(point.v).toFixed(1)}`)
+
+  const setHoverFromClientX = (clientX, rect) => {
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    setHoverIndex(Math.round(ratio * (points.length - 1)))
+  }
+
+  const handleMouseMove = (event) => {
+    setHoverFromClientX(event.clientX, event.currentTarget.getBoundingClientRect())
+  }
+
+  const handleTouchMove = (event) => {
+    const touch = event.touches[0]
+    if (touch) setHoverFromClientX(touch.clientX, event.currentTarget.getBoundingClientRect())
+  }
+
+  const hovered = hoverIndex !== null ? points[hoverIndex] : null
 
   return (
     <div className="history">
-      <svg viewBox={`0 0 ${width} ${height}`} className="history-graph">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="history-graph"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoverIndex(null)}
+        onTouchStart={handleTouchMove}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={() => setHoverIndex(null)}
+      >
         <polyline points={coords.join(' ')} />
+        {hovered && (
+          <>
+            <line
+              className="history-hover-line"
+              x1={xForIndex(hoverIndex)}
+              x2={xForIndex(hoverIndex)}
+              y1={0}
+              y2={height}
+            />
+            <circle
+              className="history-hover-dot"
+              cx={xForIndex(hoverIndex)}
+              cy={yForValue(hovered.v)}
+              r={3}
+            />
+          </>
+        )}
       </svg>
+
+      {hovered && (
+        <div
+          className="history-tooltip"
+          style={{ left: `${(xForIndex(hoverIndex) / width) * 100}%` }}
+        >
+          <strong>{hovered.v}</strong> vehicles at {hovered.t.slice(11, 16)}
+        </div>
+      )}
+
       <div className="history-caption">
         <span>{points[0].t.slice(11, 16)}</span>
         <span>peak {max}</span>
@@ -113,11 +164,28 @@ function TrafficHistory({ cameraId }) {
 }
 
 function CameraPanel({ camera, onClose }) {
+  // Keep rendering the last selected camera's data while closing, so the
+  // panel has something to show while it slides out instead of going blank.
+  const [displayCamera, setDisplayCamera] = useState(camera)
+  const [open, setOpen] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
 
   useEffect(() => {
+    if (camera) {
+      setDisplayCamera(camera)
+      // Mount in the closed position first, then flip to open on the next
+      // frame so the browser actually animates the transition in rather
+      // than just appearing already-open.
+      const raf = requestAnimationFrame(() => setOpen(true))
+      return () => cancelAnimationFrame(raf)
+    }
+
+    setOpen(false)
+  }, [camera])
+
+  useEffect(() => {
     setImageExpanded(false)
-  }, [camera?.id])
+  }, [displayCamera?.id])
 
   // Camera feeds are single static images at a fixed URL - re-fetch on a
   // timer via a cache-busting query param rather than relying on the
@@ -132,14 +200,14 @@ function CameraPanel({ camera, onClose }) {
     return () => clearInterval(timer)
   }, [camera?.id])
 
-  if (!camera) return null
+  if (!displayCamera) return null
 
-  const imageSrc = camera.image_url
-    ? `${camera.image_url}${camera.image_url.includes('?') ? '&' : '?'}t=${refreshedAt}`
-    : camera.image_url
+  const imageSrc = displayCamera.image_url
+    ? `${displayCamera.image_url}${displayCamera.image_url.includes('?') ? '&' : '?'}t=${refreshedAt}`
+    : displayCamera.image_url
 
   return (
-    <aside className="panel">
+    <aside className={`panel ${open ? 'panel-open' : ''}`}>
       <button className="panel-close" onClick={onClose} aria-label="Close">
         &times;
       </button>
@@ -147,31 +215,31 @@ function CameraPanel({ camera, onClose }) {
       <img
         className="panel-image"
         src={imageSrc}
-        alt={camera.name || `Camera ${camera.id}`}
+        alt={displayCamera.name || `Camera ${displayCamera.id}`}
         onClick={() => setImageExpanded(true)}
       />
 
       <h2 className="panel-title">
-        {camera.name || `Camera ${camera.id}`}
-        <SourceBadge source={camera.source} />
+        {displayCamera.name || `Camera ${displayCamera.id}`}
+        <SourceBadge source={displayCamera.source} />
       </h2>
 
       <dl>
         <dt>Road</dt>
-        <dd>{camera.road || '—'}</dd>
+        <dd>{displayCamera.road || '—'}</dd>
 
         <dt>Direction</dt>
-        <dd>{camera.direction || '—'}</dd>
+        <dd>{displayCamera.direction || '—'}</dd>
 
         <dt>Source</dt>
-        <dd>{camera.source}</dd>
+        <dd>{displayCamera.source}</dd>
 
         <dt>Vehicles</dt>
-        <dd>{camera.vehicles ?? '—'}</dd>
+        <dd>{displayCamera.vehicles ?? '—'}</dd>
       </dl>
 
       <h3>Traffic history</h3>
-      <TrafficHistory cameraId={camera.id} />
+      <TrafficHistory cameraId={displayCamera.id} />
 
       {imageExpanded && (
         <div className="image-lightbox" onClick={() => setImageExpanded(false)}>
@@ -182,7 +250,7 @@ function CameraPanel({ camera, onClose }) {
           >
             &times;
           </button>
-          <img src={imageSrc} alt={camera.name || `Camera ${camera.id}`} />
+          <img src={imageSrc} alt={displayCamera.name || `Camera ${displayCamera.id}`} />
         </div>
       )}
     </aside>
@@ -248,28 +316,32 @@ function App() {
 
   return (
     <div className="app">
-      <button
-        className="refresh-button"
-        onClick={loadCameras}
-        disabled={refreshing}
-      >
-        {refreshing ? 'Refreshing…' : 'Refresh'}
-      </button>
+      <div className="top-left-panel">
+        <img className="app-logo" src="/logo.png" alt="OpenHighways" />
 
-      {sources.length > 0 && (
-        <div className="source-filter">
-          {sources.map((source) => (
-            <label key={source} className="source-filter-item">
-              <input
-                type="checkbox"
-                checked={!hiddenSources.has(source)}
-                onChange={() => toggleSource(source)}
-              />
-              {SOURCE_LABELS[source] || source}
-            </label>
-          ))}
-        </div>
-      )}
+        <button
+          className="refresh-button"
+          onClick={loadCameras}
+          disabled={refreshing}
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+
+        {sources.length > 0 && (
+          <div className="source-filter">
+            {sources.map((source) => (
+              <label key={source} className="source-filter-item">
+                <input
+                  type="checkbox"
+                  checked={!hiddenSources.has(source)}
+                  onChange={() => toggleSource(source)}
+                />
+                {SOURCE_LABELS[source] || source}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       <MapContainer
         center={UK_CENTER}

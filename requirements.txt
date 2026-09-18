@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+shapely
+pyproj
+opencv-python-headless
+numpy
+flask
+flask-cors

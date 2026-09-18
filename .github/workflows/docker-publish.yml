@@ -1,0 +1,60 @@
+name: Build and publish Docker images
+
+# Only runs on tag pushes (e.g. `git tag v1.2.0 && git push origin v1.2.0`),
+# not on every commit.
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # backend/app.py, vehicle_watcher.py and sync_sources.py all share
+      # this one image (see Dockerfile) - only the command differs, set in
+      # docker-compose.yml.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}/frontend:latest

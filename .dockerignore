@@ -1,0 +1,11 @@
+.git/
+**/__pycache__/
+**/*.pyc
+frontend/node_modules/
+frontend/dist/
+src/config/*.sqlite3
+src/config/*.sqlite3-shm
+src/config/*.sqlite3-wal
+src/config/camera_images/
+src/config/models/
+src/config/traffic_wales_geocode_cache.json
