@@ -4,7 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import requests
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, send_from_directory
 from flask_cors import CORS
 
 # The scraper/config/db code lives in src/, not on the default import path.
@@ -16,10 +16,15 @@ from config import USER_AGENT, section  # noqa: E402
 
 API_SETTINGS = section("api")
 
-# Hosts like Render assign the port/public URL at deploy time rather than
-# letting config.json hardcode them - env vars take priority when set.
+# Some hosts (e.g. Fly.io) assign the port/public URL at deploy time rather
+# than letting config.json hardcode them - env vars take priority when set.
 PORT = int(os.environ.get("PORT", API_SETTINGS["port"]))
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", API_SETTINGS["cors_origin"])
+
+# Only present when the frontend's build output was baked into this image
+# (see Dockerfile.fly) - lets this one process serve the UI too, rather
+# than needing a second always-on host just for static files.
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 # Most sources' image URLs can be hotlinked directly by the browser (the
 # default, bandwidth-cheap path - see get_cameras below). TrafficWatchNI's
@@ -106,6 +111,21 @@ def get_camera_image(master_id):
         return "", 502
 
     return Response(upstream.content, content_type=upstream.headers.get("Content-Type", "image/jpeg"))
+
+
+if FRONTEND_DIST.is_dir():
+
+    @app.get("/", defaults={"path": ""})
+    @app.get("/<path:path>")
+    def serve_frontend(path):
+        """Serve the built frontend from this same process (see
+        Dockerfile.fly) - falls back to index.html for any path that isn't
+        an actual built file, e.g. a browser refresh on the app's root."""
+
+        if path and (FRONTEND_DIST / path).is_file():
+            return send_from_directory(FRONTEND_DIST, path)
+
+        return send_from_directory(FRONTEND_DIST, "index.html")
 
 
 if __name__ == "__main__":

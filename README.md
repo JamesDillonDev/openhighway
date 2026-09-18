@@ -201,40 +201,30 @@ at `/app/src/config`, so they both read/write the same SQLite database.
 docker compose up -d --build
 ```
 
-### Render
+### Fly.io
 
-[`render.yaml`](render.yaml) defines a Render [Blueprint](https://render.com/docs/blueprint-spec)
-with two services:
+[`fly.toml`](fly.toml)/[`Dockerfile.fly`](Dockerfile.fly) run everything -
+built frontend, Flask API and vehicle watcher - on a single, cheap Fly
+Machine via [`fly-start.sh`](fly-start.sh), which syncs sources, starts the
+watcher in the background, then runs the API under gunicorn in the
+foreground; `backend/app.py` serves the built frontend itself whenever
+`frontend/dist` exists in the image, so there's no separate frontend host
+or CORS setup needed. A 1 GB [volume](https://fly.io/docs/volumes/overview/)
+is mounted at `/app/src/config` for the SQLite database, camera image cache
+and geocode caches - like Render's disks, Fly volumes only attach to one
+Machine, which is why everything runs together here rather than as
+separate services.
 
-- **`openhighway-api`** - a Docker-based web service running
-  [`render-start.sh`](render-start.sh), which syncs sources, starts the
-  vehicle watcher in the background, then runs the Flask API under
-  gunicorn in the foreground. It has a 1 GB persistent disk mounted at
-  `/app/src/config` for the SQLite database, camera image cache and
-  geocode caches.
+```powershell
+fly launch --no-deploy   # first time only - creates the app, skips auto-deploy
+fly deploy
+```
 
-  Render only allows a persistent disk to be attached to *one* service, and
-  the API and watcher both need to read/write the same database - that's
-  why they run together in one service here, unlike the two separate
-  `backend`/`watcher` services in docker-compose. A disk also requires a
-  paid compute plan (the `free` plan supports neither disks nor an
-  always-on process for the watcher).
-
-- **`openhighway-frontend`** - a free static site built from `frontend/`,
-  with a rewrite rule proxying `/api/*` to `openhighway-api`'s URL so the
-  browser only ever talks to one origin (no CORS needed for normal use).
-
-To deploy: push this repo to GitHub, then in the [Render Dashboard](https://dashboard.render.com)
-choose **New > Blueprint** and point it at the repo. After both services are
-created:
-
-1. Confirm `openhighway-api`'s actual `onrender.com` URL (Render may assign
-   a different subdomain if `openhighway-api`/`openhighway-frontend` are
-   already taken) and update the `CORS_ORIGIN` env var on `openhighway-api`
-   and the rewrite `destination` in `render.yaml` (then redeploy) if so.
-2. Optionally set `TFL_APP_KEY` and/or the Traffic Scotland FTP credentials
-   as env vars on `openhighway-api` - the Blueprint prompts for these
-   during setup since they're secrets (`sync: false`).
+`auto_stop_machines = "off"` in `fly.toml` is important - the watcher must
+keep running even when there's no HTTP traffic, so the Machine can't be
+allowed to idle-stop the way a typical stateless web app would. Optionally
+set `TFL_APP_KEY` and/or the Traffic Scotland FTP credentials with
+`fly secrets set TFL_APP_KEY=...` (secrets, not `[env]` in `fly.toml`).
 
 ## Troubleshooting
 

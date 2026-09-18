@@ -1,0 +1,30 @@
+# Fly.io deployment image: bundles the built frontend, backend API and
+# vehicle watcher into one Machine (see fly.toml/fly-start.sh) - cheaper
+# than running the frontend as a separate service, since Fly has no free
+# static-site product the way some other hosts do.
+
+# Stage 1: build the Vite frontend.
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ .
+RUN npm run build
+
+# Stage 2: Python runtime for the API + watcher, plus the built frontend.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ backend/
+COPY src/ src/
+COPY --from=frontend-build /frontend/dist ./frontend/dist
+COPY fly-start.sh .
+
+CMD ["bash", "fly-start.sh"]
