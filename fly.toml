@@ -1,29 +1,37 @@
-# fly.toml app configuration file generated for openhighway on 2026-09-18T17:48:23+01:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
-app = 'openhighway'
-primary_region = 'lhr'
+app = "openhighway"
+primary_region = "lhr"
 
 [build]
-  dockerfile = 'Dockerfile.fly'
+  dockerfile = "Dockerfile.fly"
 
 [env]
-  PORT = '8080'
-
-[[mounts]]
-  source = 'openhighway_data'
-  destination = '/app/src/config'
-  initial_size = '1gb'
+  PORT = "8080"
+  RUN_BACKGROUND_TASKS = "1"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'off'
+  # The vehicle watcher runs in the background of this same Machine (see
+  # fly-start.sh) - it must never be auto-stopped for lack of HTTP traffic.
+  auto_stop_machines = "off"
   auto_start_machines = true
   min_machines_running = 1
 
+# Fly volumes attach to exactly one Machine - this is where the SQLite
+# database, camera image cache and geocode caches live.
+[[mounts]]
+  source = "openhighway_data"
+  destination = "/app/src/config"
+  initial_size = "1gb"
+
 [[vm]]
-  size = 'shared-cpu-1x'
-  memory = '512mb'
+  size = "shared-cpu-1x"
+  # 512MB OOM-killed a process - sync_sources.py's National Highways scan,
+  # vehicle_watcher.py (OpenCV/ONNX) and gunicorn all run at once on this
+  # one Machine (see fly-start.sh). NOTE: flyctl has been observed
+  # silently rewriting this file (stripping comments, resetting memory to
+  # 512mb) after some commands - after any `fly deploy`/`fly scale`, diff
+  # this file against git and re-check `fly machine status <id>
+  # --display-config` for memory_mb; re-apply with `fly scale memory 1024`
+  # and restore this file's content if needed.
+  memory = "1024mb"

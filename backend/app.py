@@ -44,6 +44,45 @@ db.init_db(_startup_conn)
 _startup_conn.close()
 
 
+def _run_background_tasks() -> None:
+    """Run the source sync + vehicle watcher as background threads in this
+    same process, instead of as separate `python ...` processes (see
+    fly-start.sh). Fly's Machine kept getting OOM-killed running three
+    separate Python processes, each paying the full import cost of
+    numpy/opencv/shapely/pyproj again - doing it here pays that cost once.
+
+    Opt-in via env var: docker-compose's separate backend/watcher services
+    already do this, and shouldn't also run it a second time in-process.
+    """
+
+    if os.environ.get("RUN_BACKGROUND_TASKS") != "1":
+        return
+
+    import threading
+
+    from pipeline import MasterPipeline
+    from sources import load_sources
+
+    def sync_once():
+        try:
+            MasterPipeline(load_sources()).run()
+        except Exception:
+            app.logger.exception("Background source sync failed")
+
+    def watch_forever():
+        import vehicle_watcher
+        try:
+            vehicle_watcher.main()
+        except Exception:
+            app.logger.exception("Background vehicle watcher crashed")
+
+    threading.Thread(target=sync_once, daemon=True).start()
+    threading.Thread(target=watch_forever, daemon=True).start()
+
+
+_run_background_tasks()
+
+
 def _camera_dict(record):
 
     data = asdict(record)

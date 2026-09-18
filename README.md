@@ -205,9 +205,12 @@ docker compose up -d --build
 
 [`fly.toml`](fly.toml)/[`Dockerfile.fly`](Dockerfile.fly) run everything -
 built frontend, Flask API and vehicle watcher - on a single, cheap Fly
-Machine via [`fly-start.sh`](fly-start.sh), which syncs sources, starts the
-watcher in the background, then runs the API under gunicorn in the
-foreground; `backend/app.py` serves the built frontend itself whenever
+Machine. `backend/app.py` runs the source sync and vehicle watcher as
+background threads in the same gunicorn process (`RUN_BACKGROUND_TASKS=1`,
+see [`fly-start.sh`](fly-start.sh)) rather than as separate `python ...`
+processes - three separate processes each re-paying the full
+numpy/opencv/shapely/pyproj import cost was enough to OOM-kill the Machine
+on its own. `backend/app.py` also serves the built frontend itself whenever
 `frontend/dist` exists in the image, so there's no separate frontend host
 or CORS setup needed. A 1 GB [volume](https://fly.io/docs/volumes/overview/)
 is mounted at `/app/src/config` for the SQLite database, camera image cache
@@ -225,6 +228,15 @@ keep running even when there's no HTTP traffic, so the Machine can't be
 allowed to idle-stop the way a typical stateless web app would. Optionally
 set `TFL_APP_KEY` and/or the Traffic Scotland FTP credentials with
 `fly secrets set TFL_APP_KEY=...` (secrets, not `[env]` in `fly.toml`).
+
+**After every `fly deploy`**, verify the Machine actually got the memory
+`[[vm]]` in `fly.toml` specifies - `fly deploy` on an *existing* Machine has
+not been reliably applying `[[vm]]` changes in practice:
+
+```powershell
+fly machine status <id> --display-config | Select-String memory_mb
+fly scale memory 1024   # if it shows 512 instead
+```
 
 ## Troubleshooting
 
