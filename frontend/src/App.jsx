@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl, useMap } from 'react-leaflet'
+import { locate } from 'leaflet.locatecontrol'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.locatecontrol/dist/L.Control.Locate.min.css'
 import './App.css'
 
 const UK_CENTER = [54.5, -3]
@@ -9,7 +11,7 @@ const POLL_INTERVAL_MS = 30000
 const IMAGE_REFRESH_MS = 1000
 
 const APP_VERSION = 'v1.3.0'
-const REPO_URL = 'https://github.com/JamesDillonDev/openhighway'
+const REPO_URL = 'https://github.com/JamesDillonDev/openhighways'
 
 // Friendlier labels for known sources - falls back to the raw name for any
 // source the frontend doesn't recognise yet.
@@ -57,6 +59,26 @@ function SourceBadge({ source }) {
       {label}
     </span>
   )
+}
+
+// Wraps the leaflet.locatecontrol plugin so it renders under the zoom
+// control with the same look and feel as OpenStreetMap/Leaflet's own UI.
+function LocateControl() {
+  const map = useMap()
+
+  useEffect(() => {
+    const control = locate({
+      position: 'topright',
+      flyTo: true,
+      keepCurrentZoomLevel: false,
+      initialZoomLevel: 14,
+      strings: { title: 'Go to my location' },
+    }).addTo(map)
+
+    return () => control.remove()
+  }, [map])
+
+  return null
 }
 
 // Traffic-level colour scale: few/no vehicles reads as blue, heavy traffic
@@ -138,6 +160,7 @@ function TrafficHistory({ cameraId }) {
     <div className="history">
       <svg
         viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
         className="history-graph"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverIndex(null)}
@@ -439,6 +462,7 @@ function App() {
         className="map"
       >
         <ZoomControl position="topright" />
+        <LocateControl />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
