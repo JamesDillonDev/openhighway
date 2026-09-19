@@ -68,6 +68,20 @@ def _run_background_tasks() -> None:
     from sources import load_sources
 
     def sync_once():
+        # A restart/redeploy shouldn't force a fresh multi-minute National
+        # Highways ID-range scan if the (persistent-volume) database
+        # already has cameras in it - only sync when the table is empty,
+        # e.g. on the very first boot against a fresh volume.
+        conn = db.get_connection()
+        try:
+            existing = conn.execute("SELECT COUNT(*) FROM cameras").fetchone()[0]
+        finally:
+            conn.close()
+
+        if existing > 0:
+            app.logger.info("Database already has %d camera(s) - skipping startup sync", existing)
+            return
+
         try:
             MasterPipeline(load_sources()).run()
         except Exception:
