@@ -8,6 +8,9 @@ const UK_CENTER = [54.5, -3]
 const POLL_INTERVAL_MS = 30000
 const IMAGE_REFRESH_MS = 1000
 
+const APP_VERSION = 'v1.3.0'
+const REPO_URL = 'https://github.com/JamesDillonDev/openhighway'
+
 // Friendlier labels for known sources - falls back to the raw name for any
 // source the frontend doesn't recognise yet.
 const SOURCE_LABELS = {
@@ -394,6 +397,14 @@ function App() {
             })}
           </div>
         )}
+
+        <div className="app-footer">
+          <a href="https://jamesdillon.uk" target="_blank" rel="noreferrer">jamesdillon.uk</a>
+          <span>&middot;</span>
+          <span>{APP_VERSION}</span>
+          <span>&middot;</span>
+          <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
+        </div>
       </div>
 
       <MapContainer

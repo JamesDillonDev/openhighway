@@ -291,3 +291,22 @@
   font-weight: 600;
   color: #888;
 }
+
+.app-footer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 280px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #999;
+}
+
+.app-footer a {
+  color: #888;
+}
