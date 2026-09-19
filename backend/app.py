@@ -38,6 +38,10 @@ IMAGE_PROXY_HEADERS = {
 app = Flask(__name__)
 CORS(app, origins=[CORS_ORIGIN])
 
+# Reused across requests instead of a fresh requests.get() each time - avoids
+# re-paying a TLS handshake to the upstream CDN on every single image poll.
+_image_proxy_session = requests.Session()
+
 # Ensure the schema exists even if sync_sources.py hasn't been run yet.
 _startup_conn = db.get_connection()
 db.init_db(_startup_conn)
@@ -144,7 +148,7 @@ def get_camera_image(master_id):
     headers = {"User-Agent": USER_AGENT, **IMAGE_PROXY_HEADERS.get(record.source, {})}
 
     try:
-        upstream = requests.get(record.image_url, headers=headers, timeout=15)
+        upstream = _image_proxy_session.get(record.image_url, headers=headers, timeout=10)
         upstream.raise_for_status()
     except requests.RequestException:
         return "", 502
